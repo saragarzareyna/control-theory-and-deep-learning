@@ -1,0 +1,70 @@
+% SISTEMA COMPLETO - Horno Fusor (Lazo Cerrado)
+% G(s) sin perturbaciones y sin saturación
+
+% ganancia escalada
+K_ref = 780/735;
+
+% PID
+Kp    = 0.0032072;
+C_num = [1, 0.002419];
+C_den = [1, 0.0002966];
+C     = Kp * tf(C_num, C_den);
+
+% planta
+P_num = [-0.0648148, 0.00021605];
+P_den = [1, 0.00342593, 3.0864e-7];
+P     = tf(P_num, P_den);
+
+% controlador
+C_total = K_ref * C;
+
+% lazo abierto y cerrado (lineal y sin saturación)
+G_open   = C_total * P;
+G_closed = feedback(G_open, 1);
+
+% ajuste de estado estable 
+K_ajuste = 780/735;
+G_final  = K_ajuste * G_closed;
+
+% análisis
+disp('G(s) lazo cerrado AJUSTADA (x 780/735)')
+G_final_zpk = zpk(G_final);
+G_final % forma tf
+G_final_zpk % forma zpk
+
+disp('polos lazo cerrado')
+pole(G_final)
+
+disp('ceros lazo cerrado')
+zero(G_final)
+
+disp('error en estado estable (escalón 780)')
+dc_final = dcgain(G_final); % ganancia DC del lazo cerrado ajustado
+T_ss     = 780 * dc_final; % temperatura final ante step de 780
+ess      = 780 - T_ss;
+fprintf('ganancia DC lazo cerrado ajustado = %.6f\n', dc_final)
+fprintf('temperatura final (T_ss) = %.4f C\n', T_ss)
+fprintf('error estado estable = %.4f C\n', ess)
+
+% respuesta al escalón
+t_sim = 0:1:40000;  % tiempo en segundos 
+[y, t] = step(780 * G_final, t_sim);
+
+% graph
+figure('Color', 'white', 'Position', [100, 100, 1000, 500]);
+plot(t/3600, y, 'Color', [0.18, 0.45, 0.75], ...
+    'LineWidth', 2, 'DisplayName', 'Temperatura del horno');
+hold on;
+yline(780, 'Color', [0.85, 0.33, 0.10], 'LineWidth', 1.8, ...
+    'LineStyle', '--', 'DisplayName', 'Setpoint (780°C)');
+xlabel('Tiempo (horas)', 'FontSize', 13, 'FontWeight', 'bold');
+ylabel('Temperatura (°C)', 'FontSize', 13, 'FontWeight', 'bold');
+title('Respuesta del Horno Fusor — G(s) con Control Clásico PID', ...
+    'FontSize', 15, 'FontWeight', 'bold');
+legend('FontSize', 11, 'Location', 'southeast');
+grid on;
+grid minor;
+xlim([0, t(end)/3600]);
+ylim([0, 1300]);
+set(gca, 'FontSize', 11, 'Box', 'on');
+hold off;
